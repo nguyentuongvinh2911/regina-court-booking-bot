@@ -5,6 +5,8 @@
 # Local distributions
 /dist/
 /logs/
+/ReginaCourtBookingBot-win-x64.zip
+/publish.ps1.tmp
 
 # User-specific credentials
 /src/ReginaCourtBookingBot/secrets.json
