@@ -32,14 +32,14 @@
 ## 🚀 Quick Start (non-technical users)
 
 > [!TIP]
-> Run `setup.bat` only once per machine, then use `run.bat` for each booking attempt.
+> Run `setup.bat` only once per machine, then use `run-once.bat`, `run-service.bat`, or the menu in `run.bat`.
 
 1. Download the latest Windows zip from GitHub Releases.
 2. Unzip to a folder (example: `C:\ReginaCourtBookingBot`).
 3. Run `setup.bat` once.
 4. Edit `secrets.json` with your account credentials.
-5. Edit `appsettings.json` with your booking preferences.
-6. Run `run.bat` whenever you want to book.
+5. Edit either `appsettings.once.json` or `appsettings.service.json`.
+6. Run `run-once.bat` or `run-service.bat`.
 
 ---
 
@@ -61,10 +61,13 @@
 ```
 ReginaCourtBookingBot/
   ReginaCourtBookingBot.exe
-  appsettings.json
+  appsettings.once.json
+  appsettings.service.json
   secrets.json
   setup.bat
   run.bat
+  run-once.bat
+  run-service.bat
   playwright.ps1
   ...runtime files (.dll, etc.)
 ```
@@ -78,10 +81,21 @@ ReginaCourtBookingBot/
 - Shows a clear error if browser install fails
 - Does **not** change your settings files
 
-### ▶️ `run.bat` (run every booking)
+### ▶️ `run.bat` (easy menu)
 
-- `run.bat` or `run.bat once`: runs one booking attempt, then exits
-- `run.bat service`: starts the long-running scheduled worker mode
+- Opens a simple menu so you can choose one-time mode or scheduled mode
+- Calls the dedicated launcher for the mode you choose
+
+### ▶️ `run-once.bat`
+
+- Runs one booking attempt, then exits
+- Uses `appsettings.once.json`
+- Saves logs to the `logs` folder
+
+### ▶️ `run-service.bat`
+
+- Starts the long-running scheduled worker mode
+- Uses `appsettings.service.json`
 - Saves logs to the `logs` folder
 
 ---
@@ -91,16 +105,22 @@ ReginaCourtBookingBot/
 
 ### One-time mode
 
-- Use `run.bat`
+- Use `run-once.bat`
 - The bot runs once, using the current booking settings, then exits
 - If `RunAtLocalTime` is set, it waits until that time before starting
 
 ### Scheduled service mode
 
-- Use `run.bat service`
+- Use `run-service.bat`
 - The bot keeps running and books automatically on the configured days/time
 - Service mode uses both `AllowedRunDays` and `RunAtLocalTime`
 - To stop it when running in a console window, press `Ctrl+C`
+
+### Easy menu mode
+
+- Double-click `run.bat`
+- Pick option `1` for one-time mode or option `2` for scheduled mode
+- This is the easiest option for non-technical users
 
 > [!TIP]
 > For a true Windows background service, install the app with a command like:
@@ -125,9 +145,13 @@ ReginaCourtBookingBot/
 }
 ```
 
-### 🧠 `appsettings.json` (behavior and booking preferences)
+### 🧠 `appsettings.once.json` (one-time mode settings)
 
-Edit this file for schedule, slot priorities, and booking details.
+Edit this file when using `run-once.bat`.
+
+### 🧠 `appsettings.service.json` (scheduled mode settings)
+
+Edit this file when using `run-service.bat`.
 
 ---
 
@@ -149,9 +173,9 @@ Put only your Regina account login in `secrets.json`:
 
 ### Step 2: Choose your run mode
 
-Pick one of these setups in `appsettings.json`.
+Pick the settings file that matches how you want to run the bot.
 
-### Example A: One-time run
+### Example A: `appsettings.once.json`
 
 Use this when you want to start the bot manually and let it run once.
 
@@ -181,11 +205,11 @@ Use this when you want to start the bot manually and let it run once.
 }
 ```
 
-- Start it with `run.bat`
+- Start it with `run-once.bat`
 - If `RunAtLocalTime` is empty, it starts immediately
 - If `RunAtLocalTime` is set, it waits until that time, runs once, then exits
 
-### Example B: Scheduled service mode
+### Example B: `appsettings.service.json`
 
 Use this when you want the bot to stay running and book automatically on specific days.
 
@@ -197,7 +221,7 @@ Use this when you want the bot to stay running and book automatically on specifi
     "ReviewButtonClickAtLocalTime": "09:00:00",
     "StrictReviewButtonClickTime": true,
     "Headless": true,
-    "DryRun": false,
+    "DryRun": true,
     "SlowMoMilliseconds": 0
   },
   "BookingRequest": {
@@ -215,7 +239,7 @@ Use this when you want the bot to stay running and book automatically on specifi
 }
 ```
 
-- Start it with `run.bat service`
+- Start it with `run-service.bat`
 - The process stays alive and waits for the next matching day/time
 - Recommended for this mode:
   - `Headless=true` (required for a true Windows Service install)
@@ -240,7 +264,7 @@ Before doing a real reservation:
 
 - Set `DryRun=true`
 - Set `Headless=false` so you can watch the browser
-- Run one manual test with `run.bat`
+- Run one manual test with `run-once.bat`
 - When satisfied, change `DryRun=false`
 
 ---
@@ -293,7 +317,7 @@ If none are available, booking stops safely.
 > ⏰ If `RunAtLocalTime` is set, the app waits until that local time.
 
 ### How do I make it run automatically on certain days?
-> 🗓️ Set `AllowedRunDays` and `RunAtLocalTime`, then start `run.bat service`.
+> 🗓️ Set `AllowedRunDays` and `RunAtLocalTime` in `appsettings.service.json`, then start `run-service.bat`.
 
 ### Can it run as a real Windows background service?
 > 🪟 Yes. The app supports `--service`, so you can register `ReginaCourtBookingBot.exe --service` with Windows Service Manager.
@@ -305,7 +329,7 @@ If none are available, booking stops safely.
 > 🔁 It tries `SlotFallbacks` in order. Reorder these to match your priority.
 
 ### Where do I put my username/password?
-> 🔐 Only in `secrets.json`. Keep `appsettings.json` credentials empty.
+> 🔐 Only in `secrets.json`. Keep the credentials in both settings files empty.
 
 ### Can I share my configured package with others?
 > 📤 Yes, but remove real credentials first. Share a blank `secrets.json` template.
@@ -316,7 +340,7 @@ If none are available, booking stops safely.
 ## 👨‍💻 Developer commands
 
 ```powershell
-# Run app
+# Run app once
 dotnet run --project src/ReginaCourtBookingBot/ReginaCourtBookingBot.csproj
 
 # Run scheduled service mode

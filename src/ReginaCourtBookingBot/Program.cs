@@ -21,6 +21,8 @@ namespace ReginaCourtBookingBot
                 return;
             }
 
+            var settingsFileName = GetSettingsFileName(runMode);
+
             var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
             {
                 Args = args,
@@ -30,7 +32,7 @@ namespace ReginaCourtBookingBot
             builder.Configuration.Sources.Clear();
             builder.Configuration
                 .SetBasePath(AppContext.BaseDirectory)
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+                .AddJsonFile(settingsFileName, optional: false, reloadOnChange: false)
                 .AddJsonFile("secrets.json", optional: true, reloadOnChange: false)
                 .AddUserSecrets<Program>(optional: true)
                 .AddEnvironmentVariables(prefix: "BOOKINGBOT_");
@@ -85,12 +87,25 @@ namespace ReginaCourtBookingBot
             Console.WriteLine("Regina Court Booking Bot");
             Console.WriteLine();
             Console.WriteLine("Usage:");
+            Console.WriteLine("  run-once.bat");
+            Console.WriteLine("  run-service.bat");
             Console.WriteLine("  ReginaCourtBookingBot.exe [--once]");
             Console.WriteLine("  ReginaCourtBookingBot.exe --service");
+            Console.WriteLine();
+            Console.WriteLine("Settings files:");
+            Console.WriteLine("  appsettings.once.json     Used by one-time runs");
+            Console.WriteLine("  appsettings.service.json  Used by scheduled runs");
             Console.WriteLine();
             Console.WriteLine("Modes:");
             Console.WriteLine("  --once     Run the booking flow one time (default).");
             Console.WriteLine("  --service  Run as a long-lived scheduled worker using AppSettings.AllowedRunDays and AppSettings.RunAtLocalTime.");
+        }
+
+        private static string GetSettingsFileName(RunMode runMode)
+        {
+            return runMode == RunMode.Service
+                ? "appsettings.service.json"
+                : "appsettings.once.json";
         }
 
         private enum RunMode

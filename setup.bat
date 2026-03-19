@@ -31,10 +31,14 @@ echo    Open secrets.json in Notepad and fill in:
 echo      "Username": "your-login-name"
 echo      "Password": "your-password"
 echo.
-echo    (Keep appsettings.json for booking preferences like court/time.)
+echo    Then edit the settings file you want to use:
+echo      appsettings.once.json     ^(manual one-time run^)
+echo      appsettings.service.json  ^(scheduled background run^)
 echo.
-echo  Then use one of these:
-echo    run.bat           ^(one-time booking run^)
-echo    run.bat service   ^(scheduled background-style worker^)
+echo  Then start the bot using one of these:
+echo    run-once.bat
+echo    run-service.bat
+echo.
+echo  Or double-click run.bat to choose a mode from a menu.
 echo.
 pause

@@ -12,7 +12,7 @@
 #    1. Unzip
 #    2. Run setup.bat  (one-time, installs Chromium)
 #    3. Fill in Username / Password in secrets.json
-#    4. Double-click run.bat each time they want to book
+#    4. Use run-once.bat or run-service.bat
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +41,8 @@ if ($LASTEXITCODE -ne 0) {
 # Copy the end-user helper scripts into the dist folder
 Copy-Item "setup.bat" $outDir -Force
 Copy-Item "run.bat"   $outDir -Force
+Copy-Item "run-once.bat" $outDir -Force
+Copy-Item "run-service.bat" $outDir -Force
 Copy-Item "README.md" $outDir -Force
 
 Write-Host "Creating release zip..." -ForegroundColor Cyan
