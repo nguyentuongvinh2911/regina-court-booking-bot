@@ -1,0 +1,18 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# Local distributions
+/dist/
+
+# User-specific credentials
+/src/ReginaCourtBookingBot/secrets.json
+**/secrets.json
+
+# Playwright local browsers/cache (if created locally)
+.playwright/
+ms-playwright/
+
+# IDE files
+.vs/
+.vscode/*.code-workspace
