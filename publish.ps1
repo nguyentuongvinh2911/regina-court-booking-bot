@@ -41,6 +41,7 @@ if ($LASTEXITCODE -ne 0) {
 # Copy the end-user helper scripts into the dist folder
 Copy-Item "setup.bat" $outDir -Force
 Copy-Item "run.bat"   $outDir -Force
+Copy-Item "README.md" $outDir -Force
 
 Write-Host "Creating release zip..." -ForegroundColor Cyan
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
