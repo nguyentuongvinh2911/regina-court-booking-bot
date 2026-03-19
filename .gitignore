@@ -4,6 +4,7 @@
 
 # Local distributions
 /dist/
+/logs/
 
 # User-specific credentials
 /src/ReginaCourtBookingBot/secrets.json
