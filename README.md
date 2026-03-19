@@ -20,7 +20,9 @@
 - [✅ What this bot does](#what-it-does)
 - [📦 Package contents](#package-contents)
 - [🛠️ What the scripts do](#scripts)
+- [🕒 Run modes](#run-modes)
 - [⚙️ Where to edit settings](#settings-files)
+- [🧪 How to set up your settings](#settings-setup)
 - [📚 Settings reference](#settings-reference)
 - [❓ FAQ](#faq)
 - [👨‍💻 Developer commands](#dev-commands)
@@ -78,9 +80,34 @@ ReginaCourtBookingBot/
 
 ### ▶️ `run.bat` (run every booking)
 
-- Starts `ReginaCourtBookingBot.exe`
-- Prints logs to the console
-- Waits at the end so users can read success/error output
+- `run.bat` or `run.bat once`: runs one booking attempt, then exits
+- `run.bat service`: starts the long-running scheduled worker mode
+- Saves logs to the `logs` folder
+
+---
+
+<a id="run-modes"></a>
+## 🕒 Run modes
+
+### One-time mode
+
+- Use `run.bat`
+- The bot runs once, using the current booking settings, then exits
+- If `RunAtLocalTime` is set, it waits until that time before starting
+
+### Scheduled service mode
+
+- Use `run.bat service`
+- The bot keeps running and books automatically on the configured days/time
+- Service mode uses both `AllowedRunDays` and `RunAtLocalTime`
+- To stop it when running in a console window, press `Ctrl+C`
+
+> [!TIP]
+> For a true Windows background service, install the app with a command like:
+>
+> `sc.exe create ReginaCourtBookingBot binPath= "\"C:\\Path\\To\\ReginaCourtBookingBot.exe\" --service" start= auto`
+>
+> For true Windows Service usage, set `Headless=true` because services should not depend on a visible desktop browser.
 
 ---
 
@@ -104,6 +131,120 @@ Edit this file for schedule, slot priorities, and booking details.
 
 ---
 
+<a id="settings-setup"></a>
+## 🧪 How to set up your settings
+
+### Step 1: Add your login in `secrets.json`
+
+Put only your Regina account login in `secrets.json`:
+
+```json
+{
+  "AppSettings": {
+    "Username": "your-login-name",
+    "Password": "your-password"
+  }
+}
+```
+
+### Step 2: Choose your run mode
+
+Pick one of these setups in `appsettings.json`.
+
+### Example A: One-time run
+
+Use this when you want to start the bot manually and let it run once.
+
+```json
+{
+  "AppSettings": {
+    "AllowedRunDays": "",
+    "RunAtLocalTime": "08:59:55",
+    "ReviewButtonClickAtLocalTime": "09:00:00",
+    "StrictReviewButtonClickTime": true,
+    "Headless": false,
+    "DryRun": false,
+    "SlowMoMilliseconds": 50
+  },
+  "BookingRequest": {
+    "Date": "",
+    "DateOffsetDays": 3,
+    "CourtType": "Badminton",
+    "SlotLabel": "FH - Badminton Court 1 8:00 PM - 9:00 PM Available",
+    "SlotFallbacks": [
+      "FH - Badminton Court 1 7:00 PM - 8:00 PM Available",
+      "FH - Badminton Court 3 8:00 PM - 9:00 PM Available"
+    ],
+    "EventName": "1",
+    "Player2FullName": "Second Player Name"
+  }
+}
+```
+
+- Start it with `run.bat`
+- If `RunAtLocalTime` is empty, it starts immediately
+- If `RunAtLocalTime` is set, it waits until that time, runs once, then exits
+
+### Example B: Scheduled service mode
+
+Use this when you want the bot to stay running and book automatically on specific days.
+
+```json
+{
+  "AppSettings": {
+    "AllowedRunDays": "Monday,Wednesday,Friday",
+    "RunAtLocalTime": "08:59:55",
+    "ReviewButtonClickAtLocalTime": "09:00:00",
+    "StrictReviewButtonClickTime": true,
+    "Headless": true,
+    "DryRun": false,
+    "SlowMoMilliseconds": 0
+  },
+  "BookingRequest": {
+    "Date": "",
+    "DateOffsetDays": 3,
+    "CourtType": "Badminton",
+    "SlotLabel": "FH - Badminton Court 1 8:00 PM - 9:00 PM Available",
+    "SlotFallbacks": [
+      "FH - Badminton Court 1 7:00 PM - 8:00 PM Available",
+      "FH - Badminton Court 3 8:00 PM - 9:00 PM Available"
+    ],
+    "EventName": "1",
+    "Player2FullName": "Second Player Name"
+  }
+}
+```
+
+- Start it with `run.bat service`
+- The process stays alive and waits for the next matching day/time
+- Recommended for this mode:
+  - `Headless=true` (required for a true Windows Service install)
+  - `SlowMoMilliseconds=0`
+  - `DryRun=false` only after you have verified everything works
+
+### Step 3: Adjust the booking date behavior
+
+- Leave `BookingRequest.Date` empty to use `DateOffsetDays`
+- Use `DateOffsetDays=3` if bookings open 3 days ahead
+- If you want a fixed date instead, set `Date` to a value like `2026-03-25`
+
+### Step 4: Configure slot priority
+
+- Put your first-choice slot in `SlotLabel`
+- Put backup choices in `SlotFallbacks`
+- The bot tries them from top to bottom
+
+### Step 5: Test safely first
+
+Before doing a real reservation:
+
+- Set `DryRun=true`
+- Set `Headless=false` so you can watch the browser
+- Run one manual test with `run.bat`
+- When satisfied, change `DryRun=false`
+
+---
+
 <a id="settings-reference"></a>
 ## 📚 Settings reference
 
@@ -112,7 +253,7 @@ Edit this file for schedule, slot priorities, and booking details.
 - `BaseUrl`: booking page URL. Keep default unless site URL changes.
 - `Username`, `Password`: keep empty here; use `secrets.json`.
 - `AllowedRunDays`: allowed weekdays, comma-separated. Example: `"Monday,Friday"`.
-- `RunAtLocalTime`: optional app start time (`HH:mm` or `HH:mm:ss`). Empty = start immediately.
+- `RunAtLocalTime`: one-time mode waits until this time; service mode uses it as the daily scheduled run time.
 - `ReviewButtonClickAtLocalTime`: optional exact time for review/confirm click. Empty = click immediately.
 - `StrictReviewButtonClickTime`: `true` = fail if late; `false` = continue if late.
 - `Headless`: `false` visible browser, `true` background browser.
@@ -151,6 +292,12 @@ If none are available, booking stops safely.
 ### Why did it wait instead of starting now?
 > ⏰ If `RunAtLocalTime` is set, the app waits until that local time.
 
+### How do I make it run automatically on certain days?
+> 🗓️ Set `AllowedRunDays` and `RunAtLocalTime`, then start `run.bat service`.
+
+### Can it run as a real Windows background service?
+> 🪟 Yes. The app supports `--service`, so you can register `ReginaCourtBookingBot.exe --service` with Windows Service Manager.
+
 ### Why did it stop before final reservation?
 > 🧪 `DryRun=true` intentionally stops before the final reserve click. Set `DryRun=false` for real booking.
 
@@ -171,6 +318,9 @@ If none are available, booking stops safely.
 ```powershell
 # Run app
 dotnet run --project src/ReginaCourtBookingBot/ReginaCourtBookingBot.csproj
+
+# Run scheduled service mode
+dotnet run --project src/ReginaCourtBookingBot/ReginaCourtBookingBot.csproj -- --service
 
 # Run tests
 dotnet test tests/ReginaCourtBookingBot.Tests/ReginaCourtBookingBot.Tests.csproj

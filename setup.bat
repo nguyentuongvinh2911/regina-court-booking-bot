@@ -33,6 +33,8 @@ echo      "Password": "your-password"
 echo.
 echo    (Keep appsettings.json for booking preferences like court/time.)
 echo.
-echo  Then double-click run.bat to start the bot.
+echo  Then use one of these:
+echo    run.bat           ^(one-time booking run^)
+echo    run.bat service   ^(scheduled background-style worker^)
 echo.
 pause

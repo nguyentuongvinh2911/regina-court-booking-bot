@@ -5,6 +5,7 @@ namespace ReginaCourtBookingBot.Config
         public string BaseUrl { get; set; } = "https://ca.apm.activecommunities.com/regina/Reserve_Options";
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+        public string AllowedRunDays { get; set; } = string.Empty;
         public string RunAtLocalTime { get; set; } = string.Empty;
         public string ReviewButtonClickAtLocalTime { get; set; } = "09:00:00";
         public bool StrictReviewButtonClickTime { get; set; } = true;

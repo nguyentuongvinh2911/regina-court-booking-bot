@@ -1,107 +1,103 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Playwright;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using ReginaCourtBookingBot.Config;
-using ReginaCourtBookingBot.Models;
-using ReginaCourtBookingBot.Pages;
 using ReginaCourtBookingBot.Services;
 
 namespace ReginaCourtBookingBot
 {
-    class Program
+    internal class Program
     {
-        static async Task Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            var configuration = new ConfigurationBuilder()
+            var runMode = ParseRunMode(args);
+            if (runMode == RunMode.Help)
+            {
+                PrintUsage();
+                return;
+            }
+
+            var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+            {
+                Args = args,
+                ContentRootPath = AppContext.BaseDirectory
+            });
+
+            builder.Configuration.Sources.Clear();
+            builder.Configuration
                 .SetBasePath(AppContext.BaseDirectory)
                 .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
                 .AddJsonFile("secrets.json", optional: true, reloadOnChange: false)
                 .AddUserSecrets<Program>(optional: true)
-                .AddEnvironmentVariables(prefix: "BOOKINGBOT_")
-                .Build();
+                .AddEnvironmentVariables(prefix: "BOOKINGBOT_");
 
-            var appSettings = new AppSettings();
-            configuration.GetSection("AppSettings").Bind(appSettings);
+            builder.Services.AddSingleton<IConfiguration>(builder.Configuration);
+            builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("AppSettings"));
+            builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<AppSettings>>().Value);
+            builder.Services.AddSingleton<BookingRunner>();
 
-            using var playwright = await Playwright.CreateAsync();
-            var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+            if (runMode == RunMode.Service)
             {
-                Headless = appSettings.Headless,
-                SlowMo = appSettings.SlowMoMilliseconds
-            });
+                builder.Services.AddWindowsService(options =>
+                {
+                    options.ServiceName = "ReginaCourtBookingBot";
+                });
+                builder.Services.AddHostedService<ScheduledBookingWorker>();
+            }
 
-            var page = await browser.NewPageAsync();
-            var reserveOptionsPage = new ReserveOptionsPage(page);
-            var bookingService = new BookingService(reserveOptionsPage, appSettings);
+            using var host = builder.Build();
 
-            await WaitUntilScheduledStartAsync(appSettings.RunAtLocalTime);
-
-            var bookingRequest = BuildBookingRequest(configuration);
-
-            Console.WriteLine($"Starting booking flow. DryRun={appSettings.DryRun}, Headless={appSettings.Headless}");
-            var bookingResult = await bookingService.CreateBookingAsync(bookingRequest);
-            Console.WriteLine($"Booking flow completed. Success={bookingResult}");
-
-            await browser.CloseAsync();
-        }
-
-        private static BookingRequest BuildBookingRequest(IConfiguration configuration)
-        {
-            var dateValue = configuration["BookingRequest:Date"];
-            var dateOffsetDays = int.TryParse(configuration["BookingRequest:DateOffsetDays"], out var parsedOffset)
-                ? parsedOffset
-                : 3;
-
-            var slotFallbacks = configuration.GetSection("BookingRequest:SlotFallbacks").Get<List<string>>() ?? new List<string>();
-
-            return new BookingRequest
+            if (runMode == RunMode.Once)
             {
-                Date = DateTime.TryParse(dateValue, out var parsedDate) ? parsedDate : DateTime.Today.AddDays(dateOffsetDays),
-                CourtType = configuration["BookingRequest:CourtType"] ?? "Badminton",
-                SlotLabel = configuration["BookingRequest:SlotLabel"] ?? string.Empty,
-                SlotFallbacks = slotFallbacks,
-                EventName = configuration["BookingRequest:EventName"] ?? "1",
-                Player2FullName = configuration["BookingRequest:Player2FullName"] ?? string.Empty
-            };
-        }
-
-        private static async Task WaitUntilScheduledStartAsync(string runAtLocalTime)
-        {
-            if (!TryParseRunTime(runAtLocalTime, out var scheduledTime))
-            {
+                var runner = host.Services.GetRequiredService<BookingRunner>();
+                var success = await runner.RunOnceAsync(waitForScheduledStart: true);
+                Environment.ExitCode = success ? 0 : 1;
                 return;
             }
 
-            var now = DateTime.Now;
-            var scheduledStart = now.Date.Add(scheduledTime);
-
-            if (scheduledStart <= now)
-            {
-                scheduledStart = scheduledStart.AddDays(1);
-            }
-
-            var delay = scheduledStart - now;
-            Console.WriteLine($"Waiting until local time {scheduledStart:yyyy-MM-dd HH:mm:ss} before starting the booking flow.");
-            await Task.Delay(delay);
+            await host.RunAsync();
         }
 
-        private static bool TryParseRunTime(string runAtLocalTime, out TimeSpan scheduledTime)
+        private static RunMode ParseRunMode(string[] args)
         {
-            if (string.IsNullOrWhiteSpace(runAtLocalTime))
+            if (args.Any(arg => string.Equals(arg, "--help", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "-h", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "/?", StringComparison.OrdinalIgnoreCase)))
             {
-                scheduledTime = default;
-                return false;
+                return RunMode.Help;
             }
 
-            if (!TimeSpan.TryParseExact(runAtLocalTime, new[] { @"hh\:mm", @"h\:mm", @"hh\:mm\:ss" }, CultureInfo.InvariantCulture, out scheduledTime))
+            if (args.Any(arg => string.Equals(arg, "--service", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "--schedule", StringComparison.OrdinalIgnoreCase)))
             {
-                throw new InvalidOperationException("AppSettings:RunAtLocalTime must be in HH:mm or HH:mm:ss format.");
+                return RunMode.Service;
             }
 
-            return true;
+            return RunMode.Once;
+        }
+
+        private static void PrintUsage()
+        {
+            Console.WriteLine("Regina Court Booking Bot");
+            Console.WriteLine();
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  ReginaCourtBookingBot.exe [--once]");
+            Console.WriteLine("  ReginaCourtBookingBot.exe --service");
+            Console.WriteLine();
+            Console.WriteLine("Modes:");
+            Console.WriteLine("  --once     Run the booking flow one time (default).");
+            Console.WriteLine("  --service  Run as a long-lived scheduled worker using AppSettings.AllowedRunDays and AppSettings.RunAtLocalTime.");
+        }
+
+        private enum RunMode
+        {
+            Once,
+            Service,
+            Help
         }
     }
 }
